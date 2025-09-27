@@ -1,6 +1,6 @@
 name: bip329_wallet_labels
 description: A Dart package for managing wallet labels in compliance with BIP-329.
-version: 1.0.1
+version: 1.0.2
 repository: https://github.com/kumulynja/bip329_wallet_labels
 
 environment:

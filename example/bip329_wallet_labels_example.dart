@@ -28,7 +28,7 @@ Future<void> main() async {
   );
 
   // Create Bip329WalletLabels instance with the configuration
-  final walletLabels = await Bip329WalletLabels.create(labelbaseConfig);
+  final walletLabels = Bip329WalletLabels.create(labelbaseConfig);
 
   // Example labels to add
   final label1 = TransactionLabel(

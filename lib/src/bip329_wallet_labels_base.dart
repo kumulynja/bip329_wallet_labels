@@ -290,7 +290,7 @@ class Bip329WalletLabels {
   Bip329WalletLabels._(this._controller);
 
   /// Creates a new instance of Bip329WalletLabels with the provided configuration
-  static Future<Bip329WalletLabels> create(LabelbaseConfig config) async {
+  static Bip329WalletLabels create(LabelbaseConfig config) {
     // Create HTTP client with base URL
     final httpClient = http.Client();
 
