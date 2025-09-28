@@ -24,6 +24,12 @@ and the Flutter guide for
 - [x] **Export functionality** - Export labels as a BIP329 JSON Lines file
 - [x] **Privacy-focused** - Local storage uses XChaCha20-Poly1305 AEAD encryption with blind indexes for searching
 - [x] **Pure Dart** - No platform-specific dependencies for maximum compatibility
+- [x] **Easy to use** - Simple unified API for managing wallet labels
+- [x] **Configurable** - Flexible configuration options for local and remote storage
+- [x] **Documentation** - Comprehensive documentation and examples
+- [ ] **Auto-sync** - Automatic synchronization between local and remote storage
+- [ ] **BIP329 type-specific fields** - Support for additional type-specific fields in labels as per BIP329
+- [ ] **Well-tested** - Comprehensive unit and integration tests to ensure reliability
 
 ## Getting started
 

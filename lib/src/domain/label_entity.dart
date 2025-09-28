@@ -139,12 +139,13 @@ class TransactionLabelEntity extends LabelEntity {
   @override
   bool isExactMatch(LabelEntity other) {
     return other is TransactionLabelEntity &&
-        super == other &&
-        blockHeight == other.blockHeight &&
-        blockTime == other.blockTime &&
-        valueSat == other.valueSat &&
-        minerFeeSat == other.minerFeeSat &&
-        _mapEquals(exchangeRates, other.exchangeRates);
+        super == other;
+        // TODO: Add type-specific field checks when BIP329 type-specific fields are implemented
+        // blockHeight == other.blockHeight &&
+        // blockTime == other.blockTime &&
+        // valueSat == other.valueSat &&
+        // minerFeeSat == other.minerFeeSat &&
+        // _mapEquals(exchangeRates, other.exchangeRates);
   }
 }
 
@@ -219,9 +220,10 @@ class AddressLabelEntity extends LabelEntity {
   @override
   bool isExactMatch(LabelEntity other) {
     return other is AddressLabelEntity &&
-        super == other &&
-        keyPath == other.keyPath &&
-        _listEquals(heights, other.heights);
+        super == other;
+        // TODO: Add type-specific field checks when BIP329 type-specific fields are implemented
+        // keyPath == other.keyPath &&
+        // _listEquals(heights, other.heights);
   }
 }
 
@@ -340,12 +342,13 @@ class InputLabelEntity extends LabelEntity {
   @override
   bool isExactMatch(LabelEntity other) {
     return other is InputLabelEntity &&
-        super == other &&
-        keyPath == other.keyPath &&
-        valueSat == other.valueSat &&
-        _mapEquals(fairMarketValue, other.fairMarketValue) &&
-        blockHeight == other.blockHeight &&
-        blockTime == other.blockTime;
+        super == other;
+        // TODO: Add type-specific field checks when BIP329 type-specific fields are implemented
+        // keyPath == other.keyPath &&
+        // valueSat == other.valueSat &&
+        // _mapEquals(fairMarketValue, other.fairMarketValue) &&
+        // blockHeight == other.blockHeight &&
+        // blockTime == other.blockTime;
   }
 }
 
@@ -454,12 +457,13 @@ class OutputLabelEntity extends LabelEntity {
   bool isExactMatch(LabelEntity other) {
     return other is OutputLabelEntity &&
         super == other &&
-        keyPath == other.keyPath &&
-        spendable == other.spendable &&
-        valueSat == other.valueSat &&
-        _mapEquals(fairMarketValue, other.fairMarketValue) &&
-        blockHeight == other.blockHeight &&
-        blockTime == other.blockTime;
+        spendable == other.spendable; // spendable is a base BIP329 field for outputs
+        // TODO: Add type-specific field checks when BIP329 type-specific fields are implemented
+        // keyPath == other.keyPath &&
+        // valueSat == other.valueSat &&
+        // _mapEquals(fairMarketValue, other.fairMarketValue) &&
+        // blockHeight == other.blockHeight &&
+        // blockTime == other.blockTime;
   }
 }
 
@@ -505,8 +509,9 @@ class XpubLabelEntity extends LabelEntity {
   @override
   bool isExactMatch(LabelEntity other) {
     return other is XpubLabelEntity &&
-        super == other &&
-        keyPath == other.keyPath;
+        super == other;
+        // TODO: Add type-specific field checks when BIP329 type-specific fields are implemented
+        // keyPath == other.keyPath;
   }
 }
 
