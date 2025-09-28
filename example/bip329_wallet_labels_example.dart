@@ -27,8 +27,13 @@ Future<void> main() async {
     apiKey: apiKey,
   );
 
-  // Create Bip329WalletLabels instance with the configuration
-  final walletLabels = Bip329WalletLabels.create(labelbaseConfig);
+  // Create Bip329WalletLabels instance with combined local and remote storage
+  final walletLabels = await Bip329WalletLabels.createWithRemote(
+    localConfig: LocalEncryptedConfig(
+      passphrase: 'example-passphrase-123',
+    ),
+    remoteConfig: labelbaseConfig,
+  );
 
   // Example labels to add
   final label1 = TransactionLabel(
@@ -75,4 +80,8 @@ Future<void> main() async {
   // Export updated and remaining labels
   final exportedLabels = await walletLabels.exportLabels();
   print('Labels exported in JSON format:\n $exportedLabels');
+
+  // Clean up resources
+  await walletLabels.dispose();
+  print('Resources cleaned up successfully');
 }

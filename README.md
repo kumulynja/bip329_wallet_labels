@@ -13,14 +13,17 @@ and the Flutter guide for
 
 # BIP329 Wallet Labels Dart Package
 
-`bip329_wallet_labels` is a Dart package that provides functionality for managing wallet labels according to the [BIP329](https://github.com/bitcoin/bips/blob/master/bip-0329.mediawiki) standard. Currently it provides the [Labelbase](https://labelbase.space) client functionality to store labels remotely on a Labelbase server and export them from there as a BIP329 JSON file. Future versions will also include encrypted local BIP329 management with automatic synchronization with the Labelbase server if one is configured.
+`bip329_wallet_labels` is a Dart package that provides functionality for managing wallet labels according to the [BIP329](https://github.com/bitcoin/bips/blob/master/bip-0329.mediawiki) standard. It supports both local encrypted storage (default) and remote storage using [Labelbase](https://labelbase.space), with the ability to use both simultaneously. Labels can be exported in the standardized BIP329 JSON Lines format.
 
 ## Features
 
-- [x] Configure your own Labelbase server or use the public one at [labelbase.space](https://labelbase.space).
-- [x] Add, get, update, and delete labels following the BIP329 standard.
-- [x] Export labels from the Labelbase server as a BIP329 JSON file.
-- [ ] (Planned) Local encrypted BIP329 label management with automatic synchronization with the Labelbase server.
+- [x] **Local encrypted storage** - Store labels locally with encryption and searchable blind indexes
+- [x] **Remote storage** - Configure your own Labelbase server or use the public one at [labelbase.space](https://labelbase.space)
+- [x] **Dual storage mode** - Use both local and remote storage simultaneously
+- [x] **BIP329 compliance** - Add, get, update, and delete labels following the BIP329 standard
+- [x] **Export functionality** - Export labels as a BIP329 JSON Lines file
+- [x] **Privacy-focused** - Local storage uses XChaCha20-Poly1305 AEAD encryption with blind indexes for searching
+- [x] **Pure Dart** - No platform-specific dependencies for maximum compatibility
 
 ## Getting started
 
@@ -38,38 +41,71 @@ import 'package:bip329_wallet_labels/bip329_wallet_labels.dart';
 
 ## Usage
 
+### Local Storage Only (Default)
+
 ```dart
 import 'package:bip329_wallet_labels/bip329_wallet_labels.dart';
-import 'package:dotenv/dotenv.dart';
 
 Future<void> main() async {
-  // Load environment variables from .env file
-  var env = DotEnv(includePlatformEnvironment: true)..load();
-
-  // Get environment variables
-  final labelbaseUrl = env['LABELBASE_URL'];
-  final labelbaseId = env['LABELBASE_ID'];
-  final apiKey = env['LABELBASE_API_KEY'];
-
-  // Validate that all required environment variables are present
-  if (labelbaseUrl == null || labelbaseId == null || apiKey == null) {
-    print('Error: Missing required environment variables.');
-    print('Please create a .env file with:');
-    print('  LABELBASE_URL=<your_labelbase_url>');
-    print('  LABELBASE_ID=<your_labelbase_id>');
-    print('  LABELBASE_API_KEY=<your_api_key>');
-    return;
-  }
-
-  // Set up Labelbase configuration
-  final labelbaseConfig = LabelbaseConfig(
-    baseUrl: Uri.parse(labelbaseUrl),
-    labelbaseId: labelbaseId,
-    apiKey: apiKey,
+  // Create with local encrypted storage only
+  final walletLabels = await Bip329WalletLabels.createLocal(
+    config: LocalEncryptedConfig(
+      passphrase: 'your-secure-passphrase',
+    ),
   );
 
-  // Create Bip329WalletLabels instance with the configuration
-  final walletLabels = Bip329WalletLabels.create(labelbaseConfig);
+  // Use the wallet labels API as normal
+  final label = TransactionLabel(
+    txId: 'F4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16',
+    label: 'Satoshi sending sats',
+  );
+  await walletLabels.addLabel(label);
+  final labels = await walletLabels.getLabels();
+
+  // Change passphrase if needed
+  await walletLabels.changePassphrase('new-secure-passphrase');
+}
+```
+
+### Combined Local and Remote Storage
+
+```dart
+import 'package:bip329_wallet_labels/bip329_wallet_labels.dart';
+
+Future<void> main() async {
+  // Create with both local and remote storage
+  final walletLabels = await Bip329WalletLabels.createWithRemote(
+    localConfig: LocalEncryptedConfig(
+      passphrase: 'your-secure-passphrase',
+    ),
+    remoteConfig: LabelbaseConfig(
+      baseUrl: Uri.parse('https://labelbase.space'),
+      labelbaseId: 'your-labelbase-id',
+      apiKey: 'your-api-key',
+    ),
+  );
+
+  // Labels will be stored in both local and remote storage
+  final label = AddressLabel(
+    address: 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh',
+    label: 'My savings address',
+  );
+  await walletLabels.addLabel(label);
+}
+```
+
+### Complete Example
+
+```dart
+import 'package:bip329_wallet_labels/bip329_wallet_labels.dart';
+
+Future<void> main() async {
+  // Create wallet labels instance with local storage
+  final walletLabels = await Bip329WalletLabels.createLocal(
+    config: LocalEncryptedConfig(
+      passphrase: 'your-secure-passphrase',
+    ),
+  );
 
   // Example labels to add
   final label1 = TransactionLabel(
@@ -119,6 +155,41 @@ Future<void> main() async {
 }
 ```
 
+## Storage Modes
+
+### Local Encrypted Storage
+
+The default and recommended mode. Labels are stored locally with:
+
+- **Encryption**: XChaCha20-Poly1305 AEAD for label data
+- **Key Management**: PBKDF2-HMAC-SHA256 for key derivation from passphrase
+- **Searchable Encryption**: Blind indexes using HMAC for equality searches
+- **Privacy**: No plaintext data stored, frequency and access pattern leakage acceptable for label use case
+
+### Remote Storage (Labelbase)
+
+Optional remote storage using the Labelbase API for cloud backup and cross-device access.
+
+### Combined Mode
+
+When both local and remote configs are provided:
+
+- Labels are stored in both locations
+- Reads query both sources and merge results
+- No automatic synchronization (planned for future versions)
+
+## Security Considerations
+
+- **Passphrase**: Use a strong passphrase for local encryption
+- **Blind Indexes**: Provide search capability but leak access patterns
+- **Key Derivation**: PBKDF2 iterations calibrated to ~200-500ms
+- **Pure Dart**: Uses well-tested cryptography libraries
+
 ## Additional information
 
-Thanks to xavierfiechter for the Labelbase project and API.
+- BIP329 specification: https://github.com/bitcoin/bips/blob/master/bip-0329.mediawiki
+- For bugs or feature requests, please open an issue on GitHub
+
+## Acknowledgements
+
+- Thanks to xavierfiechter for the Labelbase project and API

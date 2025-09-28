@@ -9,3 +9,7 @@ pubspec.lock
 # Environment variables
 .env
 example/.env
+
+# Local storage files
+*.db
+*.sqlite

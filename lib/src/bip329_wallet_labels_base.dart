@@ -5,7 +5,11 @@ import 'application/use_cases/delete_label_use_case.dart';
 import 'application/use_cases/export_labels_use_case.dart';
 import 'application/use_cases/get_labels_use_case.dart';
 import 'application/use_cases/update_label_use_case.dart';
+import 'infrastructure/datasource.dart';
 import 'infrastructure/labelbase/labelbase_datasource.dart';
+import 'infrastructure/labelbase/labelbase_datasource_adapter.dart';
+import 'infrastructure/local/local_encrypted_datasource.dart';
+import 'infrastructure/local/local_encrypted_datasource_adapter.dart';
 import 'interface_adapters/controllers/label_controller.dart';
 import 'interface_adapters/persistence/label_repository_impl.dart';
 
@@ -284,26 +288,38 @@ class LabelbaseConfig {
   });
 }
 
+class LocalEncryptedConfig {
+  final String passphrase;
+  final String? dbPath;
+
+  const LocalEncryptedConfig({
+    required this.passphrase,
+    this.dbPath,
+  });
+}
+
 class Bip329WalletLabels {
   final LabelController _controller;
+  final LocalEncryptedDatasourceAdapter? _localDatasource;
+  final LabelRepositoryImpl _repository;
 
-  Bip329WalletLabels._(this._controller);
+  Bip329WalletLabels._(this._controller, this._localDatasource, this._repository);
 
-  /// Creates a new instance of Bip329WalletLabels with the provided configuration
-  static Bip329WalletLabels create(LabelbaseConfig config) {
-    // Create HTTP client with base URL
-    final httpClient = http.Client();
-
-    // Create datasource
-    final datasource = LabelbaseDatasource(
-      httpClient: httpClient,
-      baseUrl: config.baseUrl.toString(),
-      apiKey: config.apiKey,
-      labelbaseId: config.labelbaseId,
+  /// Creates with local encrypted storage only (default mode)
+  static Future<Bip329WalletLabels> createLocal({
+    required LocalEncryptedConfig config,
+  }) async {
+    // Create local encrypted datasource
+    final localDatasource = LocalEncryptedDatasource(
+      passphrase: config.passphrase,
+      dbPath: config.dbPath,
     );
+    await localDatasource.initialize();
 
-    // Create repository
-    final repository = LabelRepositoryImpl(datasource);
+    final localAdapter = LocalEncryptedDatasourceAdapter(localDatasource);
+
+    // Create repository with only local datasource
+    final repository = LabelRepositoryImpl([localAdapter]);
 
     // Create use cases
     final getLabelsUseCase = GetLabelsUseCase(repository);
@@ -321,7 +337,94 @@ class Bip329WalletLabels {
       exportLabelsUseCase: exportLabelsUseCase,
     );
 
-    return Bip329WalletLabels._(controller);
+    return Bip329WalletLabels._(controller, localAdapter, repository);
+  }
+
+  /// Creates with both local and remote storage
+  static Future<Bip329WalletLabels> createWithRemote({
+    required LocalEncryptedConfig localConfig,
+    required LabelbaseConfig remoteConfig,
+  }) async {
+    final datasources = <LabelDatasource>[];
+
+    // Create local encrypted datasource
+    final localDatasource = LocalEncryptedDatasource(
+      passphrase: localConfig.passphrase,
+      dbPath: localConfig.dbPath,
+    );
+    await localDatasource.initialize();
+
+    final localAdapter = LocalEncryptedDatasourceAdapter(localDatasource);
+    datasources.add(localAdapter);
+
+    // Create remote datasource
+    final httpClient = http.Client();
+    final remoteDatasource = LabelbaseDatasource(
+      httpClient: httpClient,
+      baseUrl: remoteConfig.baseUrl.toString(),
+      apiKey: remoteConfig.apiKey,
+      labelbaseId: remoteConfig.labelbaseId,
+    );
+    final remoteAdapter = LabelbaseDatasourceAdapter(remoteDatasource);
+    datasources.add(remoteAdapter);
+
+    // Create repository with both datasources
+    final repository = LabelRepositoryImpl(datasources);
+
+    // Create use cases
+    final getLabelsUseCase = GetLabelsUseCase(repository);
+    final addLabelUseCase = AddLabelUseCase(repository);
+    final updateLabelUseCase = UpdateLabelUseCase(repository);
+    final deleteLabelUseCase = DeleteLabelUseCase(repository);
+    final exportLabelsUseCase = ExportLabelsUseCase(repository);
+
+    // Create controller
+    final controller = LabelController(
+      getLabelsUseCase: getLabelsUseCase,
+      addLabelUseCase: addLabelUseCase,
+      updateLabelUseCase: updateLabelUseCase,
+      deleteLabelUseCase: deleteLabelUseCase,
+      exportLabelsUseCase: exportLabelsUseCase,
+    );
+
+    return Bip329WalletLabels._(controller, localAdapter, repository);
+  }
+
+  /// Creates with Labelbase remote storage only (legacy mode)
+  @Deprecated('Use createLocal or createWithRemote instead')
+  static Bip329WalletLabels create(LabelbaseConfig config) {
+    // Create HTTP client
+    final httpClient = http.Client();
+
+    // Create datasource
+    final datasource = LabelbaseDatasource(
+      httpClient: httpClient,
+      baseUrl: config.baseUrl.toString(),
+      apiKey: config.apiKey,
+      labelbaseId: config.labelbaseId,
+    );
+    final adapter = LabelbaseDatasourceAdapter(datasource);
+
+    // Create repository
+    final repository = LabelRepositoryImpl([adapter]);
+
+    // Create use cases
+    final getLabelsUseCase = GetLabelsUseCase(repository);
+    final addLabelUseCase = AddLabelUseCase(repository);
+    final updateLabelUseCase = UpdateLabelUseCase(repository);
+    final deleteLabelUseCase = DeleteLabelUseCase(repository);
+    final exportLabelsUseCase = ExportLabelsUseCase(repository);
+
+    // Create controller
+    final controller = LabelController(
+      getLabelsUseCase: getLabelsUseCase,
+      addLabelUseCase: addLabelUseCase,
+      updateLabelUseCase: updateLabelUseCase,
+      deleteLabelUseCase: deleteLabelUseCase,
+      exportLabelsUseCase: exportLabelsUseCase,
+    );
+
+    return Bip329WalletLabels._(controller, null, repository);
   }
 
   /// Get all labels, optionally filtered by type, ref, label, and/or origin
@@ -363,5 +466,24 @@ class Bip329WalletLabels {
   /// Export all labels in BIP329 JSON Lines format
   Future<String> exportLabels() async {
     return await _controller.exportLabels();
+  }
+
+  /// Change passphrase for local encrypted storage
+  Future<void> changePassphrase(String newPassphrase) async {
+    if (_localDatasource != null) {
+      await _localDatasource.changePassphrase(newPassphrase);
+    } else {
+      throw UnsupportedError('No local storage configured');
+    }
+  }
+
+  /// Close the database connection and free resources
+  Future<void> close() async {
+    await dispose();
+  }
+
+  /// Dispose of all resources (database connections, HTTP clients, etc.)
+  Future<void> dispose() async {
+    await _repository.dispose();
   }
 }
