@@ -1,11 +1,13 @@
-class SimpleLabelEntity {
+/// Data model for decrypted label data from local storage
+/// This is a simplified representation used internally by the local datasource
+class LocalDecryptedLabelModel {
   final LabelType type;
   final String ref;
   final String? label;
   final String? origin;
   final bool? spendable;
 
-  const SimpleLabelEntity({
+  const LocalDecryptedLabelModel({
     required this.type,
     required this.ref,
     this.label,
@@ -13,8 +15,8 @@ class SimpleLabelEntity {
     this.spendable,
   });
 
-  factory SimpleLabelEntity.fromMap(Map<String, dynamic> data) {
-    return SimpleLabelEntity(
+  factory LocalDecryptedLabelModel.fromMap(Map<String, dynamic> data) {
+    return LocalDecryptedLabelModel(
       type: _parseLabelType(data['type']),
       ref: data['ref'],
       label: data['label'],
@@ -52,7 +54,7 @@ class SimpleLabelEntity {
     }
   }
 
-  bool isExactMatch(SimpleLabelEntity other) {
+  bool isExactMatch(LocalDecryptedLabelModel other) {
     return type == other.type &&
         ref == other.ref &&
         label == other.label &&

@@ -5,11 +5,12 @@ import 'application/use_cases/delete_label_use_case.dart';
 import 'application/use_cases/export_labels_use_case.dart';
 import 'application/use_cases/get_labels_use_case.dart';
 import 'application/use_cases/update_label_use_case.dart';
-import 'infrastructure/datasource.dart';
 import 'infrastructure/labelbase/labelbase_datasource.dart';
 import 'infrastructure/labelbase/labelbase_datasource_adapter.dart';
+import 'infrastructure/labelbase/labelbase_sync_datasource_adapter.dart';
 import 'infrastructure/local/local_encrypted_datasource.dart';
-import 'infrastructure/local/local_encrypted_datasource_adapter.dart';
+import 'infrastructure/local/local_sync_datasource_adapter.dart';
+import 'infrastructure/sync/sync_repository.dart';
 import 'interface_adapters/controllers/label_controller.dart';
 import 'interface_adapters/persistence/label_repository_impl.dart';
 
@@ -300,10 +301,11 @@ class LocalEncryptedConfig {
 
 class Bip329WalletLabels {
   final LabelController _controller;
-  final LocalEncryptedDatasourceAdapter? _localDatasource;
+  final LocalSyncDatasourceAdapter? _localDatasource;
   final LabelRepositoryImpl _repository;
+  final SyncRepository? _syncRepository;
 
-  Bip329WalletLabels._(this._controller, this._localDatasource, this._repository);
+  Bip329WalletLabels._(this._controller, this._localDatasource, this._repository, [this._syncRepository]);
 
   /// Creates with local encrypted storage only (default mode)
   static Future<Bip329WalletLabels> createLocal({
@@ -316,7 +318,7 @@ class Bip329WalletLabels {
     );
     await localDatasource.initialize();
 
-    final localAdapter = LocalEncryptedDatasourceAdapter(localDatasource);
+    final localAdapter = LocalSyncDatasourceAdapter(localDatasource);
 
     // Create repository with only local datasource
     final repository = LabelRepositoryImpl([localAdapter]);
@@ -340,13 +342,11 @@ class Bip329WalletLabels {
     return Bip329WalletLabels._(controller, localAdapter, repository);
   }
 
-  /// Creates with both local and remote storage
+  /// Creates with both local and remote storage with sync capabilities
   static Future<Bip329WalletLabels> createWithRemote({
     required LocalEncryptedConfig localConfig,
     required LabelbaseConfig remoteConfig,
   }) async {
-    final datasources = <LabelDatasource>[];
-
     // Create local encrypted datasource
     final localDatasource = LocalEncryptedDatasource(
       passphrase: localConfig.passphrase,
@@ -354,8 +354,7 @@ class Bip329WalletLabels {
     );
     await localDatasource.initialize();
 
-    final localAdapter = LocalEncryptedDatasourceAdapter(localDatasource);
-    datasources.add(localAdapter);
+    final localSyncAdapter = LocalSyncDatasourceAdapter(localDatasource);
 
     // Create remote datasource
     final httpClient = http.Client();
@@ -365,18 +364,20 @@ class Bip329WalletLabels {
       apiKey: remoteConfig.apiKey,
       labelbaseId: remoteConfig.labelbaseId,
     );
-    final remoteAdapter = LabelbaseDatasourceAdapter(remoteDatasource);
-    datasources.add(remoteAdapter);
+    final remoteSyncAdapter = LabelbaseSyncDatasourceAdapter(remoteDatasource);
 
-    // Create repository with both datasources
-    final repository = LabelRepositoryImpl(datasources);
+    // Create sync repository for remote-first operations
+    final syncRepository = SyncRepository(
+      localDatasource: localSyncAdapter,
+      remoteDatasource: remoteSyncAdapter,
+    );
 
-    // Create use cases
-    final getLabelsUseCase = GetLabelsUseCase(repository);
-    final addLabelUseCase = AddLabelUseCase(repository);
-    final updateLabelUseCase = UpdateLabelUseCase(repository);
-    final deleteLabelUseCase = DeleteLabelUseCase(repository);
-    final exportLabelsUseCase = ExportLabelsUseCase(repository);
+    // Create use cases with sync repository
+    final getLabelsUseCase = GetLabelsUseCase(syncRepository);
+    final addLabelUseCase = AddLabelUseCase(syncRepository);
+    final updateLabelUseCase = UpdateLabelUseCase(syncRepository);
+    final deleteLabelUseCase = DeleteLabelUseCase(syncRepository);
+    final exportLabelsUseCase = ExportLabelsUseCase(syncRepository);
 
     // Create controller
     final controller = LabelController(
@@ -387,7 +388,10 @@ class Bip329WalletLabels {
       exportLabelsUseCase: exportLabelsUseCase,
     );
 
-    return Bip329WalletLabels._(controller, localAdapter, repository);
+    // Also create a fallback repository for basic operations (backward compatibility)
+    final basicRepository = LabelRepositoryImpl([localSyncAdapter, remoteSyncAdapter]);
+
+    return Bip329WalletLabels._(controller, localSyncAdapter, basicRepository, syncRepository);
   }
 
   /// Creates with Labelbase remote storage only (legacy mode)
@@ -466,6 +470,24 @@ class Bip329WalletLabels {
   /// Export all labels in BIP329 JSON Lines format
   Future<String> exportLabels() async {
     return await _controller.exportLabels();
+  }
+
+  /// Sync labels between local and remote storage
+  ///
+  /// This method reconciles local and remote label state by:
+  /// 1. Pushing any pending local changes to remote
+  /// 2. Pulling remote changes and resolving conflicts
+  ///
+  /// Only available when both local and remote storage are configured.
+  Future<void> sync() async {
+    if (_syncRepository != null) {
+      await _syncRepository.sync();
+    } else {
+      throw UnsupportedError(
+        'Sync is only available when both local and remote storage are configured. '
+        'Use createWithRemote() to enable sync capabilities.'
+      );
+    }
   }
 
   /// Change passphrase for local encrypted storage

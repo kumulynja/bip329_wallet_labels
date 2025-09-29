@@ -1,0 +1,3 @@
+(A) Add an id to the Label entity, the domain should generate it, like this we can make update and delete operations more easy, based on the id instead of comparing all fields
+(B) Add the Labelbase id to the local schema, this way we can synchronize more easily
+(C) Support type specific fields already, even if Labelbase does not support them yet, with the id linked to the Labelbase id, we can easily update them later

@@ -148,6 +148,64 @@ class $EncryptedLabelsTable extends EncryptedLabels
     requiredDuringInsert: false,
     defaultValue: currentDateAndTime,
   );
+  static const VerificationMeta _dirtyMeta = const VerificationMeta('dirty');
+  @override
+  late final GeneratedColumn<String> dirty = GeneratedColumn<String>(
+    'dirty',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('clean'),
+  );
+  static const VerificationMeta _shadowRemotePresentMeta =
+      const VerificationMeta('shadowRemotePresent');
+  @override
+  late final GeneratedColumn<bool> shadowRemotePresent = GeneratedColumn<bool>(
+    'shadow_remote_present',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("shadow_remote_present" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _shadowRemoteDigestMeta =
+      const VerificationMeta('shadowRemoteDigest');
+  @override
+  late final GeneratedColumn<Uint8List> shadowRemoteDigest =
+      GeneratedColumn<Uint8List>(
+        'shadow_remote_digest',
+        aliasedName,
+        true,
+        type: DriftSqlType.blob,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _shadowLastSeenAtMeta = const VerificationMeta(
+    'shadowLastSeenAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> shadowLastSeenAt =
+      GeneratedColumn<DateTime>(
+        'shadow_last_seen_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _tombstoneDeletedAtMeta =
+      const VerificationMeta('tombstoneDeletedAt');
+  @override
+  late final GeneratedColumn<DateTime> tombstoneDeletedAt =
+      GeneratedColumn<DateTime>(
+        'tombstone_deleted_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -163,6 +221,11 @@ class $EncryptedLabelsTable extends EncryptedLabels
     algo,
     createdAt,
     updatedAt,
+    dirty,
+    shadowRemotePresent,
+    shadowRemoteDigest,
+    shadowLastSeenAt,
+    tombstoneDeletedAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -262,6 +325,48 @@ class $EncryptedLabelsTable extends EncryptedLabels
         updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
       );
     }
+    if (data.containsKey('dirty')) {
+      context.handle(
+        _dirtyMeta,
+        dirty.isAcceptableOrUnknown(data['dirty']!, _dirtyMeta),
+      );
+    }
+    if (data.containsKey('shadow_remote_present')) {
+      context.handle(
+        _shadowRemotePresentMeta,
+        shadowRemotePresent.isAcceptableOrUnknown(
+          data['shadow_remote_present']!,
+          _shadowRemotePresentMeta,
+        ),
+      );
+    }
+    if (data.containsKey('shadow_remote_digest')) {
+      context.handle(
+        _shadowRemoteDigestMeta,
+        shadowRemoteDigest.isAcceptableOrUnknown(
+          data['shadow_remote_digest']!,
+          _shadowRemoteDigestMeta,
+        ),
+      );
+    }
+    if (data.containsKey('shadow_last_seen_at')) {
+      context.handle(
+        _shadowLastSeenAtMeta,
+        shadowLastSeenAt.isAcceptableOrUnknown(
+          data['shadow_last_seen_at']!,
+          _shadowLastSeenAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('tombstone_deleted_at')) {
+      context.handle(
+        _tombstoneDeletedAtMeta,
+        tombstoneDeletedAt.isAcceptableOrUnknown(
+          data['tombstone_deleted_at']!,
+          _tombstoneDeletedAtMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -332,6 +437,28 @@ class $EncryptedLabelsTable extends EncryptedLabels
             DriftSqlType.dateTime,
             data['${effectivePrefix}updated_at'],
           )!,
+      dirty:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}dirty'],
+          )!,
+      shadowRemotePresent:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.bool,
+            data['${effectivePrefix}shadow_remote_present'],
+          )!,
+      shadowRemoteDigest: attachedDatabase.typeMapping.read(
+        DriftSqlType.blob,
+        data['${effectivePrefix}shadow_remote_digest'],
+      ),
+      shadowLastSeenAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}shadow_last_seen_at'],
+      ),
+      tombstoneDeletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}tombstone_deleted_at'],
+      ),
     );
   }
 
@@ -355,6 +482,11 @@ class EncryptedLabel extends DataClass implements Insertable<EncryptedLabel> {
   final String algo;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final String dirty;
+  final bool shadowRemotePresent;
+  final Uint8List? shadowRemoteDigest;
+  final DateTime? shadowLastSeenAt;
+  final DateTime? tombstoneDeletedAt;
   const EncryptedLabel({
     required this.id,
     required this.nonce,
@@ -369,6 +501,11 @@ class EncryptedLabel extends DataClass implements Insertable<EncryptedLabel> {
     required this.algo,
     required this.createdAt,
     required this.updatedAt,
+    required this.dirty,
+    required this.shadowRemotePresent,
+    this.shadowRemoteDigest,
+    this.shadowLastSeenAt,
+    this.tombstoneDeletedAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -394,6 +531,17 @@ class EncryptedLabel extends DataClass implements Insertable<EncryptedLabel> {
     map['algo'] = Variable<String>(algo);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['dirty'] = Variable<String>(dirty);
+    map['shadow_remote_present'] = Variable<bool>(shadowRemotePresent);
+    if (!nullToAbsent || shadowRemoteDigest != null) {
+      map['shadow_remote_digest'] = Variable<Uint8List>(shadowRemoteDigest);
+    }
+    if (!nullToAbsent || shadowLastSeenAt != null) {
+      map['shadow_last_seen_at'] = Variable<DateTime>(shadowLastSeenAt);
+    }
+    if (!nullToAbsent || tombstoneDeletedAt != null) {
+      map['tombstone_deleted_at'] = Variable<DateTime>(tombstoneDeletedAt);
+    }
     return map;
   }
 
@@ -422,6 +570,20 @@ class EncryptedLabel extends DataClass implements Insertable<EncryptedLabel> {
       algo: Value(algo),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
+      dirty: Value(dirty),
+      shadowRemotePresent: Value(shadowRemotePresent),
+      shadowRemoteDigest:
+          shadowRemoteDigest == null && nullToAbsent
+              ? const Value.absent()
+              : Value(shadowRemoteDigest),
+      shadowLastSeenAt:
+          shadowLastSeenAt == null && nullToAbsent
+              ? const Value.absent()
+              : Value(shadowLastSeenAt),
+      tombstoneDeletedAt:
+          tombstoneDeletedAt == null && nullToAbsent
+              ? const Value.absent()
+              : Value(tombstoneDeletedAt),
     );
   }
 
@@ -444,6 +606,19 @@ class EncryptedLabel extends DataClass implements Insertable<EncryptedLabel> {
       algo: serializer.fromJson<String>(json['algo']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      dirty: serializer.fromJson<String>(json['dirty']),
+      shadowRemotePresent: serializer.fromJson<bool>(
+        json['shadowRemotePresent'],
+      ),
+      shadowRemoteDigest: serializer.fromJson<Uint8List?>(
+        json['shadowRemoteDigest'],
+      ),
+      shadowLastSeenAt: serializer.fromJson<DateTime?>(
+        json['shadowLastSeenAt'],
+      ),
+      tombstoneDeletedAt: serializer.fromJson<DateTime?>(
+        json['tombstoneDeletedAt'],
+      ),
     );
   }
   @override
@@ -463,6 +638,11 @@ class EncryptedLabel extends DataClass implements Insertable<EncryptedLabel> {
       'algo': serializer.toJson<String>(algo),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'dirty': serializer.toJson<String>(dirty),
+      'shadowRemotePresent': serializer.toJson<bool>(shadowRemotePresent),
+      'shadowRemoteDigest': serializer.toJson<Uint8List?>(shadowRemoteDigest),
+      'shadowLastSeenAt': serializer.toJson<DateTime?>(shadowLastSeenAt),
+      'tombstoneDeletedAt': serializer.toJson<DateTime?>(tombstoneDeletedAt),
     };
   }
 
@@ -480,6 +660,11 @@ class EncryptedLabel extends DataClass implements Insertable<EncryptedLabel> {
     String? algo,
     DateTime? createdAt,
     DateTime? updatedAt,
+    String? dirty,
+    bool? shadowRemotePresent,
+    Value<Uint8List?> shadowRemoteDigest = const Value.absent(),
+    Value<DateTime?> shadowLastSeenAt = const Value.absent(),
+    Value<DateTime?> tombstoneDeletedAt = const Value.absent(),
   }) => EncryptedLabel(
     id: id ?? this.id,
     nonce: nonce ?? this.nonce,
@@ -494,6 +679,20 @@ class EncryptedLabel extends DataClass implements Insertable<EncryptedLabel> {
     algo: algo ?? this.algo,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
+    dirty: dirty ?? this.dirty,
+    shadowRemotePresent: shadowRemotePresent ?? this.shadowRemotePresent,
+    shadowRemoteDigest:
+        shadowRemoteDigest.present
+            ? shadowRemoteDigest.value
+            : this.shadowRemoteDigest,
+    shadowLastSeenAt:
+        shadowLastSeenAt.present
+            ? shadowLastSeenAt.value
+            : this.shadowLastSeenAt,
+    tombstoneDeletedAt:
+        tombstoneDeletedAt.present
+            ? tombstoneDeletedAt.value
+            : this.tombstoneDeletedAt,
   );
   EncryptedLabel copyWithCompanion(EncryptedLabelsCompanion data) {
     return EncryptedLabel(
@@ -515,6 +714,23 @@ class EncryptedLabel extends DataClass implements Insertable<EncryptedLabel> {
       algo: data.algo.present ? data.algo.value : this.algo,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      dirty: data.dirty.present ? data.dirty.value : this.dirty,
+      shadowRemotePresent:
+          data.shadowRemotePresent.present
+              ? data.shadowRemotePresent.value
+              : this.shadowRemotePresent,
+      shadowRemoteDigest:
+          data.shadowRemoteDigest.present
+              ? data.shadowRemoteDigest.value
+              : this.shadowRemoteDigest,
+      shadowLastSeenAt:
+          data.shadowLastSeenAt.present
+              ? data.shadowLastSeenAt.value
+              : this.shadowLastSeenAt,
+      tombstoneDeletedAt:
+          data.tombstoneDeletedAt.present
+              ? data.tombstoneDeletedAt.value
+              : this.tombstoneDeletedAt,
     );
   }
 
@@ -533,7 +749,12 @@ class EncryptedLabel extends DataClass implements Insertable<EncryptedLabel> {
           ..write('keyVersion: $keyVersion, ')
           ..write('algo: $algo, ')
           ..write('createdAt: $createdAt, ')
-          ..write('updatedAt: $updatedAt')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('dirty: $dirty, ')
+          ..write('shadowRemotePresent: $shadowRemotePresent, ')
+          ..write('shadowRemoteDigest: $shadowRemoteDigest, ')
+          ..write('shadowLastSeenAt: $shadowLastSeenAt, ')
+          ..write('tombstoneDeletedAt: $tombstoneDeletedAt')
           ..write(')'))
         .toString();
   }
@@ -553,6 +774,11 @@ class EncryptedLabel extends DataClass implements Insertable<EncryptedLabel> {
     algo,
     createdAt,
     updatedAt,
+    dirty,
+    shadowRemotePresent,
+    $driftBlobEquality.hash(shadowRemoteDigest),
+    shadowLastSeenAt,
+    tombstoneDeletedAt,
   );
   @override
   bool operator ==(Object other) =>
@@ -570,7 +796,15 @@ class EncryptedLabel extends DataClass implements Insertable<EncryptedLabel> {
           other.keyVersion == this.keyVersion &&
           other.algo == this.algo &&
           other.createdAt == this.createdAt &&
-          other.updatedAt == this.updatedAt);
+          other.updatedAt == this.updatedAt &&
+          other.dirty == this.dirty &&
+          other.shadowRemotePresent == this.shadowRemotePresent &&
+          $driftBlobEquality.equals(
+            other.shadowRemoteDigest,
+            this.shadowRemoteDigest,
+          ) &&
+          other.shadowLastSeenAt == this.shadowLastSeenAt &&
+          other.tombstoneDeletedAt == this.tombstoneDeletedAt);
 }
 
 class EncryptedLabelsCompanion extends UpdateCompanion<EncryptedLabel> {
@@ -587,6 +821,11 @@ class EncryptedLabelsCompanion extends UpdateCompanion<EncryptedLabel> {
   final Value<String> algo;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
+  final Value<String> dirty;
+  final Value<bool> shadowRemotePresent;
+  final Value<Uint8List?> shadowRemoteDigest;
+  final Value<DateTime?> shadowLastSeenAt;
+  final Value<DateTime?> tombstoneDeletedAt;
   final Value<int> rowid;
   const EncryptedLabelsCompanion({
     this.id = const Value.absent(),
@@ -602,6 +841,11 @@ class EncryptedLabelsCompanion extends UpdateCompanion<EncryptedLabel> {
     this.algo = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.dirty = const Value.absent(),
+    this.shadowRemotePresent = const Value.absent(),
+    this.shadowRemoteDigest = const Value.absent(),
+    this.shadowLastSeenAt = const Value.absent(),
+    this.tombstoneDeletedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   EncryptedLabelsCompanion.insert({
@@ -618,6 +862,11 @@ class EncryptedLabelsCompanion extends UpdateCompanion<EncryptedLabel> {
     this.algo = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.dirty = const Value.absent(),
+    this.shadowRemotePresent = const Value.absent(),
+    this.shadowRemoteDigest = const Value.absent(),
+    this.shadowLastSeenAt = const Value.absent(),
+    this.tombstoneDeletedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        nonce = Value(nonce),
@@ -637,6 +886,11 @@ class EncryptedLabelsCompanion extends UpdateCompanion<EncryptedLabel> {
     Expression<String>? algo,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
+    Expression<String>? dirty,
+    Expression<bool>? shadowRemotePresent,
+    Expression<Uint8List>? shadowRemoteDigest,
+    Expression<DateTime>? shadowLastSeenAt,
+    Expression<DateTime>? tombstoneDeletedAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -653,6 +907,14 @@ class EncryptedLabelsCompanion extends UpdateCompanion<EncryptedLabel> {
       if (algo != null) 'algo': algo,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
+      if (dirty != null) 'dirty': dirty,
+      if (shadowRemotePresent != null)
+        'shadow_remote_present': shadowRemotePresent,
+      if (shadowRemoteDigest != null)
+        'shadow_remote_digest': shadowRemoteDigest,
+      if (shadowLastSeenAt != null) 'shadow_last_seen_at': shadowLastSeenAt,
+      if (tombstoneDeletedAt != null)
+        'tombstone_deleted_at': tombstoneDeletedAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -671,6 +933,11 @@ class EncryptedLabelsCompanion extends UpdateCompanion<EncryptedLabel> {
     Value<String>? algo,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
+    Value<String>? dirty,
+    Value<bool>? shadowRemotePresent,
+    Value<Uint8List?>? shadowRemoteDigest,
+    Value<DateTime?>? shadowLastSeenAt,
+    Value<DateTime?>? tombstoneDeletedAt,
     Value<int>? rowid,
   }) {
     return EncryptedLabelsCompanion(
@@ -687,6 +954,11 @@ class EncryptedLabelsCompanion extends UpdateCompanion<EncryptedLabel> {
       algo: algo ?? this.algo,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      dirty: dirty ?? this.dirty,
+      shadowRemotePresent: shadowRemotePresent ?? this.shadowRemotePresent,
+      shadowRemoteDigest: shadowRemoteDigest ?? this.shadowRemoteDigest,
+      shadowLastSeenAt: shadowLastSeenAt ?? this.shadowLastSeenAt,
+      tombstoneDeletedAt: tombstoneDeletedAt ?? this.tombstoneDeletedAt,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -733,6 +1005,25 @@ class EncryptedLabelsCompanion extends UpdateCompanion<EncryptedLabel> {
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
     }
+    if (dirty.present) {
+      map['dirty'] = Variable<String>(dirty.value);
+    }
+    if (shadowRemotePresent.present) {
+      map['shadow_remote_present'] = Variable<bool>(shadowRemotePresent.value);
+    }
+    if (shadowRemoteDigest.present) {
+      map['shadow_remote_digest'] = Variable<Uint8List>(
+        shadowRemoteDigest.value,
+      );
+    }
+    if (shadowLastSeenAt.present) {
+      map['shadow_last_seen_at'] = Variable<DateTime>(shadowLastSeenAt.value);
+    }
+    if (tombstoneDeletedAt.present) {
+      map['tombstone_deleted_at'] = Variable<DateTime>(
+        tombstoneDeletedAt.value,
+      );
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -755,6 +1046,11 @@ class EncryptedLabelsCompanion extends UpdateCompanion<EncryptedLabel> {
           ..write('algo: $algo, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('dirty: $dirty, ')
+          ..write('shadowRemotePresent: $shadowRemotePresent, ')
+          ..write('shadowRemoteDigest: $shadowRemoteDigest, ')
+          ..write('shadowLastSeenAt: $shadowLastSeenAt, ')
+          ..write('tombstoneDeletedAt: $tombstoneDeletedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -1598,6 +1894,477 @@ class KeyringCompanion extends UpdateCompanion<KeyringData> {
   }
 }
 
+class $OutboxTable extends Outbox with TableInfo<$OutboxTable, OutboxData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $OutboxTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _eventIdMeta = const VerificationMeta(
+    'eventId',
+  );
+  @override
+  late final GeneratedColumn<String> eventId = GeneratedColumn<String>(
+    'event_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _keyOriginMeta = const VerificationMeta(
+    'keyOrigin',
+  );
+  @override
+  late final GeneratedColumn<String> keyOrigin = GeneratedColumn<String>(
+    'key_origin',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _keyTypeMeta = const VerificationMeta(
+    'keyType',
+  );
+  @override
+  late final GeneratedColumn<String> keyType = GeneratedColumn<String>(
+    'key_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _keyRefMeta = const VerificationMeta('keyRef');
+  @override
+  late final GeneratedColumn<String> keyRef = GeneratedColumn<String>(
+    'key_ref',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _opMeta = const VerificationMeta('op');
+  @override
+  late final GeneratedColumn<String> op = GeneratedColumn<String>(
+    'op',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _payloadJsonMeta = const VerificationMeta(
+    'payloadJson',
+  );
+  @override
+  late final GeneratedColumn<String> payloadJson = GeneratedColumn<String>(
+    'payload_json',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    eventId,
+    keyOrigin,
+    keyType,
+    keyRef,
+    op,
+    payloadJson,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'outbox';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<OutboxData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('event_id')) {
+      context.handle(
+        _eventIdMeta,
+        eventId.isAcceptableOrUnknown(data['event_id']!, _eventIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_eventIdMeta);
+    }
+    if (data.containsKey('key_origin')) {
+      context.handle(
+        _keyOriginMeta,
+        keyOrigin.isAcceptableOrUnknown(data['key_origin']!, _keyOriginMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_keyOriginMeta);
+    }
+    if (data.containsKey('key_type')) {
+      context.handle(
+        _keyTypeMeta,
+        keyType.isAcceptableOrUnknown(data['key_type']!, _keyTypeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_keyTypeMeta);
+    }
+    if (data.containsKey('key_ref')) {
+      context.handle(
+        _keyRefMeta,
+        keyRef.isAcceptableOrUnknown(data['key_ref']!, _keyRefMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_keyRefMeta);
+    }
+    if (data.containsKey('op')) {
+      context.handle(_opMeta, op.isAcceptableOrUnknown(data['op']!, _opMeta));
+    } else if (isInserting) {
+      context.missing(_opMeta);
+    }
+    if (data.containsKey('payload_json')) {
+      context.handle(
+        _payloadJsonMeta,
+        payloadJson.isAcceptableOrUnknown(
+          data['payload_json']!,
+          _payloadJsonMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {eventId};
+  @override
+  OutboxData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return OutboxData(
+      eventId:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}event_id'],
+          )!,
+      keyOrigin:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}key_origin'],
+          )!,
+      keyType:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}key_type'],
+          )!,
+      keyRef:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}key_ref'],
+          )!,
+      op:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}op'],
+          )!,
+      payloadJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}payload_json'],
+      ),
+      createdAt:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.dateTime,
+            data['${effectivePrefix}created_at'],
+          )!,
+    );
+  }
+
+  @override
+  $OutboxTable createAlias(String alias) {
+    return $OutboxTable(attachedDatabase, alias);
+  }
+}
+
+class OutboxData extends DataClass implements Insertable<OutboxData> {
+  final String eventId;
+  final String keyOrigin;
+  final String keyType;
+  final String keyRef;
+  final String op;
+  final String? payloadJson;
+  final DateTime createdAt;
+  const OutboxData({
+    required this.eventId,
+    required this.keyOrigin,
+    required this.keyType,
+    required this.keyRef,
+    required this.op,
+    this.payloadJson,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['event_id'] = Variable<String>(eventId);
+    map['key_origin'] = Variable<String>(keyOrigin);
+    map['key_type'] = Variable<String>(keyType);
+    map['key_ref'] = Variable<String>(keyRef);
+    map['op'] = Variable<String>(op);
+    if (!nullToAbsent || payloadJson != null) {
+      map['payload_json'] = Variable<String>(payloadJson);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  OutboxCompanion toCompanion(bool nullToAbsent) {
+    return OutboxCompanion(
+      eventId: Value(eventId),
+      keyOrigin: Value(keyOrigin),
+      keyType: Value(keyType),
+      keyRef: Value(keyRef),
+      op: Value(op),
+      payloadJson:
+          payloadJson == null && nullToAbsent
+              ? const Value.absent()
+              : Value(payloadJson),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory OutboxData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return OutboxData(
+      eventId: serializer.fromJson<String>(json['eventId']),
+      keyOrigin: serializer.fromJson<String>(json['keyOrigin']),
+      keyType: serializer.fromJson<String>(json['keyType']),
+      keyRef: serializer.fromJson<String>(json['keyRef']),
+      op: serializer.fromJson<String>(json['op']),
+      payloadJson: serializer.fromJson<String?>(json['payloadJson']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'eventId': serializer.toJson<String>(eventId),
+      'keyOrigin': serializer.toJson<String>(keyOrigin),
+      'keyType': serializer.toJson<String>(keyType),
+      'keyRef': serializer.toJson<String>(keyRef),
+      'op': serializer.toJson<String>(op),
+      'payloadJson': serializer.toJson<String?>(payloadJson),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  OutboxData copyWith({
+    String? eventId,
+    String? keyOrigin,
+    String? keyType,
+    String? keyRef,
+    String? op,
+    Value<String?> payloadJson = const Value.absent(),
+    DateTime? createdAt,
+  }) => OutboxData(
+    eventId: eventId ?? this.eventId,
+    keyOrigin: keyOrigin ?? this.keyOrigin,
+    keyType: keyType ?? this.keyType,
+    keyRef: keyRef ?? this.keyRef,
+    op: op ?? this.op,
+    payloadJson: payloadJson.present ? payloadJson.value : this.payloadJson,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  OutboxData copyWithCompanion(OutboxCompanion data) {
+    return OutboxData(
+      eventId: data.eventId.present ? data.eventId.value : this.eventId,
+      keyOrigin: data.keyOrigin.present ? data.keyOrigin.value : this.keyOrigin,
+      keyType: data.keyType.present ? data.keyType.value : this.keyType,
+      keyRef: data.keyRef.present ? data.keyRef.value : this.keyRef,
+      op: data.op.present ? data.op.value : this.op,
+      payloadJson:
+          data.payloadJson.present ? data.payloadJson.value : this.payloadJson,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('OutboxData(')
+          ..write('eventId: $eventId, ')
+          ..write('keyOrigin: $keyOrigin, ')
+          ..write('keyType: $keyType, ')
+          ..write('keyRef: $keyRef, ')
+          ..write('op: $op, ')
+          ..write('payloadJson: $payloadJson, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    eventId,
+    keyOrigin,
+    keyType,
+    keyRef,
+    op,
+    payloadJson,
+    createdAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is OutboxData &&
+          other.eventId == this.eventId &&
+          other.keyOrigin == this.keyOrigin &&
+          other.keyType == this.keyType &&
+          other.keyRef == this.keyRef &&
+          other.op == this.op &&
+          other.payloadJson == this.payloadJson &&
+          other.createdAt == this.createdAt);
+}
+
+class OutboxCompanion extends UpdateCompanion<OutboxData> {
+  final Value<String> eventId;
+  final Value<String> keyOrigin;
+  final Value<String> keyType;
+  final Value<String> keyRef;
+  final Value<String> op;
+  final Value<String?> payloadJson;
+  final Value<DateTime> createdAt;
+  final Value<int> rowid;
+  const OutboxCompanion({
+    this.eventId = const Value.absent(),
+    this.keyOrigin = const Value.absent(),
+    this.keyType = const Value.absent(),
+    this.keyRef = const Value.absent(),
+    this.op = const Value.absent(),
+    this.payloadJson = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  OutboxCompanion.insert({
+    required String eventId,
+    required String keyOrigin,
+    required String keyType,
+    required String keyRef,
+    required String op,
+    this.payloadJson = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : eventId = Value(eventId),
+       keyOrigin = Value(keyOrigin),
+       keyType = Value(keyType),
+       keyRef = Value(keyRef),
+       op = Value(op);
+  static Insertable<OutboxData> custom({
+    Expression<String>? eventId,
+    Expression<String>? keyOrigin,
+    Expression<String>? keyType,
+    Expression<String>? keyRef,
+    Expression<String>? op,
+    Expression<String>? payloadJson,
+    Expression<DateTime>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (eventId != null) 'event_id': eventId,
+      if (keyOrigin != null) 'key_origin': keyOrigin,
+      if (keyType != null) 'key_type': keyType,
+      if (keyRef != null) 'key_ref': keyRef,
+      if (op != null) 'op': op,
+      if (payloadJson != null) 'payload_json': payloadJson,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  OutboxCompanion copyWith({
+    Value<String>? eventId,
+    Value<String>? keyOrigin,
+    Value<String>? keyType,
+    Value<String>? keyRef,
+    Value<String>? op,
+    Value<String?>? payloadJson,
+    Value<DateTime>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return OutboxCompanion(
+      eventId: eventId ?? this.eventId,
+      keyOrigin: keyOrigin ?? this.keyOrigin,
+      keyType: keyType ?? this.keyType,
+      keyRef: keyRef ?? this.keyRef,
+      op: op ?? this.op,
+      payloadJson: payloadJson ?? this.payloadJson,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (eventId.present) {
+      map['event_id'] = Variable<String>(eventId.value);
+    }
+    if (keyOrigin.present) {
+      map['key_origin'] = Variable<String>(keyOrigin.value);
+    }
+    if (keyType.present) {
+      map['key_type'] = Variable<String>(keyType.value);
+    }
+    if (keyRef.present) {
+      map['key_ref'] = Variable<String>(keyRef.value);
+    }
+    if (op.present) {
+      map['op'] = Variable<String>(op.value);
+    }
+    if (payloadJson.present) {
+      map['payload_json'] = Variable<String>(payloadJson.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('OutboxCompanion(')
+          ..write('eventId: $eventId, ')
+          ..write('keyOrigin: $keyOrigin, ')
+          ..write('keyType: $keyType, ')
+          ..write('keyRef: $keyRef, ')
+          ..write('op: $op, ')
+          ..write('payloadJson: $payloadJson, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$LabelsDatabase extends GeneratedDatabase {
   _$LabelsDatabase(QueryExecutor e) : super(e);
   $LabelsDatabaseManager get managers => $LabelsDatabaseManager(this);
@@ -1606,6 +2373,7 @@ abstract class _$LabelsDatabase extends GeneratedDatabase {
   );
   late final $LabelTokensTable labelTokens = $LabelTokensTable(this);
   late final $KeyringTable keyring = $KeyringTable(this);
+  late final $OutboxTable outbox = $OutboxTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -1614,6 +2382,7 @@ abstract class _$LabelsDatabase extends GeneratedDatabase {
     encryptedLabels,
     labelTokens,
     keyring,
+    outbox,
   ];
 }
 
@@ -1632,6 +2401,11 @@ typedef $$EncryptedLabelsTableCreateCompanionBuilder =
       Value<String> algo,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
+      Value<String> dirty,
+      Value<bool> shadowRemotePresent,
+      Value<Uint8List?> shadowRemoteDigest,
+      Value<DateTime?> shadowLastSeenAt,
+      Value<DateTime?> tombstoneDeletedAt,
       Value<int> rowid,
     });
 typedef $$EncryptedLabelsTableUpdateCompanionBuilder =
@@ -1649,6 +2423,11 @@ typedef $$EncryptedLabelsTableUpdateCompanionBuilder =
       Value<String> algo,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
+      Value<String> dirty,
+      Value<bool> shadowRemotePresent,
+      Value<Uint8List?> shadowRemoteDigest,
+      Value<DateTime?> shadowLastSeenAt,
+      Value<DateTime?> tombstoneDeletedAt,
       Value<int> rowid,
     });
 
@@ -1723,6 +2502,31 @@ class $$EncryptedLabelsTableFilterComposer
 
   ColumnFilters<DateTime> get updatedAt => $composableBuilder(
     column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get dirty => $composableBuilder(
+    column: $table.dirty,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get shadowRemotePresent => $composableBuilder(
+    column: $table.shadowRemotePresent,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<Uint8List> get shadowRemoteDigest => $composableBuilder(
+    column: $table.shadowRemoteDigest,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get shadowLastSeenAt => $composableBuilder(
+    column: $table.shadowLastSeenAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get tombstoneDeletedAt => $composableBuilder(
+    column: $table.tombstoneDeletedAt,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -1800,6 +2604,31 @@ class $$EncryptedLabelsTableOrderingComposer
     column: $table.updatedAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get dirty => $composableBuilder(
+    column: $table.dirty,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get shadowRemotePresent => $composableBuilder(
+    column: $table.shadowRemotePresent,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<Uint8List> get shadowRemoteDigest => $composableBuilder(
+    column: $table.shadowRemoteDigest,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get shadowLastSeenAt => $composableBuilder(
+    column: $table.shadowLastSeenAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get tombstoneDeletedAt => $composableBuilder(
+    column: $table.tombstoneDeletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$EncryptedLabelsTableAnnotationComposer
@@ -1855,6 +2684,29 @@ class $$EncryptedLabelsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get dirty =>
+      $composableBuilder(column: $table.dirty, builder: (column) => column);
+
+  GeneratedColumn<bool> get shadowRemotePresent => $composableBuilder(
+    column: $table.shadowRemotePresent,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<Uint8List> get shadowRemoteDigest => $composableBuilder(
+    column: $table.shadowRemoteDigest,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get shadowLastSeenAt => $composableBuilder(
+    column: $table.shadowLastSeenAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get tombstoneDeletedAt => $composableBuilder(
+    column: $table.tombstoneDeletedAt,
+    builder: (column) => column,
+  );
 }
 
 class $$EncryptedLabelsTableTableManager
@@ -1914,6 +2766,11 @@ class $$EncryptedLabelsTableTableManager
                 Value<String> algo = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
+                Value<String> dirty = const Value.absent(),
+                Value<bool> shadowRemotePresent = const Value.absent(),
+                Value<Uint8List?> shadowRemoteDigest = const Value.absent(),
+                Value<DateTime?> shadowLastSeenAt = const Value.absent(),
+                Value<DateTime?> tombstoneDeletedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => EncryptedLabelsCompanion(
                 id: id,
@@ -1929,6 +2786,11 @@ class $$EncryptedLabelsTableTableManager
                 algo: algo,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                dirty: dirty,
+                shadowRemotePresent: shadowRemotePresent,
+                shadowRemoteDigest: shadowRemoteDigest,
+                shadowLastSeenAt: shadowLastSeenAt,
+                tombstoneDeletedAt: tombstoneDeletedAt,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -1946,6 +2808,11 @@ class $$EncryptedLabelsTableTableManager
                 Value<String> algo = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
+                Value<String> dirty = const Value.absent(),
+                Value<bool> shadowRemotePresent = const Value.absent(),
+                Value<Uint8List?> shadowRemoteDigest = const Value.absent(),
+                Value<DateTime?> shadowLastSeenAt = const Value.absent(),
+                Value<DateTime?> tombstoneDeletedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => EncryptedLabelsCompanion.insert(
                 id: id,
@@ -1961,6 +2828,11 @@ class $$EncryptedLabelsTableTableManager
                 algo: algo,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                dirty: dirty,
+                shadowRemotePresent: shadowRemotePresent,
+                shadowRemoteDigest: shadowRemoteDigest,
+                shadowLastSeenAt: shadowLastSeenAt,
+                tombstoneDeletedAt: tombstoneDeletedAt,
                 rowid: rowid,
               ),
           withReferenceMapper:
@@ -2452,6 +3324,250 @@ typedef $$KeyringTableProcessedTableManager =
       KeyringData,
       PrefetchHooks Function()
     >;
+typedef $$OutboxTableCreateCompanionBuilder =
+    OutboxCompanion Function({
+      required String eventId,
+      required String keyOrigin,
+      required String keyType,
+      required String keyRef,
+      required String op,
+      Value<String?> payloadJson,
+      Value<DateTime> createdAt,
+      Value<int> rowid,
+    });
+typedef $$OutboxTableUpdateCompanionBuilder =
+    OutboxCompanion Function({
+      Value<String> eventId,
+      Value<String> keyOrigin,
+      Value<String> keyType,
+      Value<String> keyRef,
+      Value<String> op,
+      Value<String?> payloadJson,
+      Value<DateTime> createdAt,
+      Value<int> rowid,
+    });
+
+class $$OutboxTableFilterComposer
+    extends Composer<_$LabelsDatabase, $OutboxTable> {
+  $$OutboxTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get eventId => $composableBuilder(
+    column: $table.eventId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get keyOrigin => $composableBuilder(
+    column: $table.keyOrigin,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get keyType => $composableBuilder(
+    column: $table.keyType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get keyRef => $composableBuilder(
+    column: $table.keyRef,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get op => $composableBuilder(
+    column: $table.op,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get payloadJson => $composableBuilder(
+    column: $table.payloadJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$OutboxTableOrderingComposer
+    extends Composer<_$LabelsDatabase, $OutboxTable> {
+  $$OutboxTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get eventId => $composableBuilder(
+    column: $table.eventId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get keyOrigin => $composableBuilder(
+    column: $table.keyOrigin,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get keyType => $composableBuilder(
+    column: $table.keyType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get keyRef => $composableBuilder(
+    column: $table.keyRef,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get op => $composableBuilder(
+    column: $table.op,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get payloadJson => $composableBuilder(
+    column: $table.payloadJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$OutboxTableAnnotationComposer
+    extends Composer<_$LabelsDatabase, $OutboxTable> {
+  $$OutboxTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get eventId =>
+      $composableBuilder(column: $table.eventId, builder: (column) => column);
+
+  GeneratedColumn<String> get keyOrigin =>
+      $composableBuilder(column: $table.keyOrigin, builder: (column) => column);
+
+  GeneratedColumn<String> get keyType =>
+      $composableBuilder(column: $table.keyType, builder: (column) => column);
+
+  GeneratedColumn<String> get keyRef =>
+      $composableBuilder(column: $table.keyRef, builder: (column) => column);
+
+  GeneratedColumn<String> get op =>
+      $composableBuilder(column: $table.op, builder: (column) => column);
+
+  GeneratedColumn<String> get payloadJson => $composableBuilder(
+    column: $table.payloadJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$OutboxTableTableManager
+    extends
+        RootTableManager<
+          _$LabelsDatabase,
+          $OutboxTable,
+          OutboxData,
+          $$OutboxTableFilterComposer,
+          $$OutboxTableOrderingComposer,
+          $$OutboxTableAnnotationComposer,
+          $$OutboxTableCreateCompanionBuilder,
+          $$OutboxTableUpdateCompanionBuilder,
+          (
+            OutboxData,
+            BaseReferences<_$LabelsDatabase, $OutboxTable, OutboxData>,
+          ),
+          OutboxData,
+          PrefetchHooks Function()
+        > {
+  $$OutboxTableTableManager(_$LabelsDatabase db, $OutboxTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer:
+              () => $$OutboxTableFilterComposer($db: db, $table: table),
+          createOrderingComposer:
+              () => $$OutboxTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer:
+              () => $$OutboxTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> eventId = const Value.absent(),
+                Value<String> keyOrigin = const Value.absent(),
+                Value<String> keyType = const Value.absent(),
+                Value<String> keyRef = const Value.absent(),
+                Value<String> op = const Value.absent(),
+                Value<String?> payloadJson = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => OutboxCompanion(
+                eventId: eventId,
+                keyOrigin: keyOrigin,
+                keyType: keyType,
+                keyRef: keyRef,
+                op: op,
+                payloadJson: payloadJson,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String eventId,
+                required String keyOrigin,
+                required String keyType,
+                required String keyRef,
+                required String op,
+                Value<String?> payloadJson = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => OutboxCompanion.insert(
+                eventId: eventId,
+                keyOrigin: keyOrigin,
+                keyType: keyType,
+                keyRef: keyRef,
+                op: op,
+                payloadJson: payloadJson,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper:
+              (p0) =>
+                  p0
+                      .map(
+                        (e) => (
+                          e.readTable(table),
+                          BaseReferences(db, table, e),
+                        ),
+                      )
+                      .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$OutboxTableProcessedTableManager =
+    ProcessedTableManager<
+      _$LabelsDatabase,
+      $OutboxTable,
+      OutboxData,
+      $$OutboxTableFilterComposer,
+      $$OutboxTableOrderingComposer,
+      $$OutboxTableAnnotationComposer,
+      $$OutboxTableCreateCompanionBuilder,
+      $$OutboxTableUpdateCompanionBuilder,
+      (OutboxData, BaseReferences<_$LabelsDatabase, $OutboxTable, OutboxData>),
+      OutboxData,
+      PrefetchHooks Function()
+    >;
 
 class $LabelsDatabaseManager {
   final _$LabelsDatabase _db;
@@ -2462,4 +3578,6 @@ class $LabelsDatabaseManager {
       $$LabelTokensTableTableManager(_db, _db.labelTokens);
   $$KeyringTableTableManager get keyring =>
       $$KeyringTableTableManager(_db, _db.keyring);
+  $$OutboxTableTableManager get outbox =>
+      $$OutboxTableTableManager(_db, _db.outbox);
 }

@@ -1,9 +1,12 @@
 import 'dart:convert';
 import 'dart:math';
 import 'package:drift/drift.dart';
-import 'simple_label_entity.dart';
+import 'local_decrypted_label_model.dart';
 import 'crypto/encryption_service.dart';
 import 'database/labels_database.dart';
+import '../sync/sync_types.dart';
+import '../sync/canonical_utils.dart';
+import '../../domain/label_entity.dart';
 
 class LocalEncryptedDatasource {
   final LabelsDatabase _database;
@@ -79,11 +82,11 @@ class LocalEncryptedDatasource {
     }
   }
 
-  Future<List<SimpleLabelEntity>> getAllLabels() async {
+  Future<List<LocalDecryptedLabelModel>> getAllLabels() async {
     await _ensureInitialized();
 
     final encryptedLabels = await _database.getAllEncryptedLabels();
-    final labels = <SimpleLabelEntity>[];
+    final labels = <LocalDecryptedLabelModel>[];
 
     for (final encrypted in encryptedLabels) {
       try {
@@ -97,7 +100,7 @@ class LocalEncryptedDatasource {
     return labels;
   }
 
-  Future<SimpleLabelEntity?> findExactLabel(SimpleLabelEntity searchLabel) async {
+  Future<LocalDecryptedLabelModel?> findExactLabel(LocalDecryptedLabelModel searchLabel) async {
     await _ensureInitialized();
 
     final encryptedLabels = await _queryLabels(
@@ -121,7 +124,7 @@ class LocalEncryptedDatasource {
     return null;
   }
 
-  Future<SimpleLabelEntity> addLabel(SimpleLabelEntity label) async {
+  Future<LocalDecryptedLabelModel> addLabel(LocalDecryptedLabelModel label) async {
     await _ensureInitialized();
 
     final id = _generateLabelId();
@@ -141,8 +144,8 @@ class LocalEncryptedDatasource {
   }
 
   Future<void> updateLabel({
-    required SimpleLabelEntity labelToUpdate,
-    required SimpleLabelEntity updatedLabel,
+    required LocalDecryptedLabelModel labelToUpdate,
+    required LocalDecryptedLabelModel updatedLabel,
   }) async {
     await _ensureInitialized();
 
@@ -188,7 +191,7 @@ class LocalEncryptedDatasource {
     await _database.updateEncryptedLabel(labelId, encrypted, tokenHashes);
   }
 
-  Future<void> deleteLabel(SimpleLabelEntity label) async {
+  Future<void> deleteLabel(LocalDecryptedLabelModel label) async {
     await _ensureInitialized();
 
     final encryptedLabels = await _queryLabels(
@@ -274,7 +277,7 @@ class LocalEncryptedDatasource {
   }
 
   Future<EncryptedLabelsCompanion> _encryptLabel(
-    SimpleLabelEntity label,
+    LocalDecryptedLabelModel label,
     String id,
   ) async {
     final plaintext = json.encode({
@@ -342,7 +345,7 @@ class LocalEncryptedDatasource {
     );
   }
 
-  Future<SimpleLabelEntity> _decryptLabel(EncryptedLabel encrypted) async {
+  Future<LocalDecryptedLabelModel> _decryptLabel(EncryptedLabel encrypted) async {
     final encryptedData = EncryptedData(
       nonce: encrypted.nonce,
       ciphertext: encrypted.ciphertext,
@@ -360,11 +363,11 @@ class LocalEncryptedDatasource {
 
     final data = json.decode(plaintext) as Map<String, dynamic>;
 
-    return SimpleLabelEntity.fromMap(data);
+    return LocalDecryptedLabelModel.fromMap(data);
   }
 
 
-  bool _isExactMatch(SimpleLabelEntity label1, SimpleLabelEntity label2) {
+  bool _isExactMatch(LocalDecryptedLabelModel label1, LocalDecryptedLabelModel label2) {
     return label1.isExactMatch(label2);
   }
 
@@ -411,5 +414,259 @@ class LocalEncryptedDatasource {
 
   Future<void> close() async {
     await _database.close();
+  }
+
+  // Sync-related methods
+
+  Future<LocalDecryptedLabelModel> upsertLabelWithSync(
+    LocalDecryptedLabelModel label, {
+    required ShadowMeta shadow,
+    required DirtyFlag dirty,
+  }) async {
+    await _ensureInitialized();
+
+    final key = CanonicalUtils.toLabelKey(_toLabelEntity(label));
+    final id = _generateLabelIdFromKey(key);
+    final encrypted = await _encryptLabelWithSync(label, id, shadow, dirty);
+
+    final tokenHashes = label.label != null
+        ? _encryptionService.computeTokenHashes(
+            label: label.label!,
+            mek: _mek!,
+            origin: label.origin,
+          )
+        : <Uint8List>[];
+
+    // Check if label exists
+    final existing = await _database.getEncryptedLabelById(id);
+    if (existing != null) {
+      await _database.updateEncryptedLabel(id, encrypted, tokenHashes);
+    } else {
+      await _database.insertEncryptedLabel(encrypted, tokenHashes);
+    }
+
+    return label;
+  }
+
+  Future<void> markDeleted(
+    LabelKey key,
+    DateTime deletedAt, {
+    required ShadowMeta shadow,
+    required DirtyFlag dirty,
+  }) async {
+    await _ensureInitialized();
+
+    final id = _generateLabelIdFromKey(key);
+    await _database.updateShadowMeta(
+      id,
+      dirty: dirty.value,
+      shadowRemotePresent: shadow.remotePresent,
+      shadowRemoteDigest: shadow.remoteDigest,
+      tombstoneDeletedAt: deletedAt,
+    );
+  }
+
+  Future<LocalDecryptedLabelModel?> getLabelByKey(LabelKey key) async {
+    await _ensureInitialized();
+
+    final id = _generateLabelIdFromKey(key);
+    final encrypted = await _database.getEncryptedLabelById(id);
+
+    if (encrypted == null || encrypted.tombstoneDeletedAt != null) {
+      return null;
+    }
+
+    try {
+      return await _decryptLabel(encrypted);
+    } catch (e) {
+      print('Failed to decrypt label $id: $e');
+      return null;
+    }
+  }
+
+  Future<List<LocalDecryptedLabelModel>> getLabelsByOrigin(String origin) async {
+    await _ensureInitialized();
+
+    final originHash = _encryptionService.computeOriginIndex(
+      origin: origin,
+      mek: _mek!,
+    );
+
+    final encryptedLabels = await _database.queryEncryptedLabels(
+      originHash: originHash,
+    );
+
+    final labels = <LocalDecryptedLabelModel>[];
+    for (final encrypted in encryptedLabels) {
+      if (encrypted.tombstoneDeletedAt != null) continue; // Skip deleted
+
+      try {
+        final decrypted = await _decryptLabel(encrypted);
+        labels.add(decrypted);
+      } catch (e) {
+        print('Failed to decrypt label ${encrypted.id}: $e');
+      }
+    }
+
+    return labels;
+  }
+
+  Future<ShadowState?> getShadowState(LabelKey key) async {
+    await _ensureInitialized();
+
+    final id = _generateLabelIdFromKey(key);
+    final encrypted = await _database.getEncryptedLabelById(id);
+
+    if (encrypted == null) return null;
+
+    return ShadowState(
+      remotePresent: encrypted.shadowRemotePresent,
+      remoteDigest: encrypted.shadowRemoteDigest,
+      lastSeenAt: encrypted.shadowLastSeenAt,
+      tombstoneDeletedAt: encrypted.tombstoneDeletedAt,
+    );
+  }
+
+  Future<void> updateShadowState(LabelKey key, ShadowState shadow) async {
+    await _ensureInitialized();
+
+    final id = _generateLabelIdFromKey(key);
+    await _database.updateShadowMeta(
+      id,
+      shadowRemotePresent: shadow.remotePresent,
+      shadowRemoteDigest: shadow.remoteDigest,
+      shadowLastSeenAt: shadow.lastSeenAt,
+      tombstoneDeletedAt: shadow.tombstoneDeletedAt,
+    );
+  }
+
+  Future<List<LocalDecryptedLabelModel>> getDirtyLabels() async {
+    await _ensureInitialized();
+
+    final encryptedLabels = await _database.getDirtyLabels();
+    final labels = <LocalDecryptedLabelModel>[];
+
+    for (final encrypted in encryptedLabels) {
+      if (encrypted.tombstoneDeletedAt != null) continue; // Skip deleted
+
+      try {
+        final decrypted = await _decryptLabel(encrypted);
+        labels.add(decrypted);
+      } catch (e) {
+        print('Failed to decrypt label ${encrypted.id}: $e');
+      }
+    }
+
+    return labels;
+  }
+
+  Future<void> enqueueOutboxEvent(OutboxEvent event) async {
+    await _ensureInitialized();
+
+    final companion = OutboxCompanion(
+      eventId: Value(event.eventId),
+      keyOrigin: Value(event.keyOrigin),
+      keyType: Value(event.keyType),
+      keyRef: Value(event.keyRef),
+      op: Value(event.op),
+      payloadJson: Value(event.payloadJson),
+      createdAt: Value(event.createdAt),
+    );
+
+    await _database.insertOutboxEvent(companion);
+  }
+
+  Future<List<OutboxEvent>> getOutboxEvents({int? limit}) async {
+    await _ensureInitialized();
+
+    final events = await _database.getOutboxEvents(limit: limit);
+    return events.map((e) => OutboxEvent(
+      eventId: e.eventId,
+      keyOrigin: e.keyOrigin,
+      keyType: e.keyType,
+      keyRef: e.keyRef,
+      op: e.op,
+      payloadJson: e.payloadJson,
+      createdAt: e.createdAt,
+    )).toList();
+  }
+
+  Future<void> deleteOutboxEvent(String eventId) async {
+    await _ensureInitialized();
+    await _database.deleteOutboxEvent(eventId);
+  }
+
+  Future<EncryptedLabelsCompanion> _encryptLabelWithSync(
+    LocalDecryptedLabelModel label,
+    String id,
+    ShadowMeta shadow,
+    DirtyFlag dirty,
+  ) async {
+    final companion = await _encryptLabel(label, id);
+
+    return companion.copyWith(
+      dirty: Value(dirty.value),
+      shadowRemotePresent: Value(shadow.remotePresent),
+      shadowRemoteDigest: Value(shadow.remoteDigest),
+      shadowLastSeenAt: Value(DateTime.now()),
+    );
+  }
+
+  String _generateLabelIdFromKey(LabelKey key) {
+    // Generate deterministic ID from canonical key
+    // This ensures same label always gets same ID
+    final canonical = '${key.originNorm}:${key.type}:${key.refNorm}';
+    return canonical.hashCode.abs().toString();
+  }
+
+  LabelEntity _toLabelEntity(LocalDecryptedLabelModel simpleLabel) {
+    final type = simpleLabel.type;
+    final ref = simpleLabel.ref;
+    final label = simpleLabel.label;
+    final origin = simpleLabel.origin;
+
+    switch (type) {
+      case LabelType.tx:
+        return TransactionLabelEntity(
+          txId: ref,
+          label: label,
+          origin: origin,
+        );
+      case LabelType.address:
+        return AddressLabelEntity(
+          address: ref,
+          label: label,
+          origin: origin,
+        );
+      case LabelType.pubkey:
+        return PubkeyLabelEntity(
+          publicKey: ref,
+          label: label,
+          origin: origin,
+        );
+      case LabelType.input:
+        final parts = ref.split(':');
+        return InputLabelEntity(
+          txId: parts[0],
+          index: int.parse(parts[1]),
+          label: label,
+          origin: origin,
+        );
+      case LabelType.output:
+        final parts = ref.split(':');
+        return OutputLabelEntity(
+          txId: parts[0],
+          index: int.parse(parts[1]),
+          label: label,
+          origin: origin,
+          spendable: simpleLabel.spendable,
+        );
+      case LabelType.xpub:
+        return XpubLabelEntity(
+          xpub: ref,
+          label: label,
+          origin: origin,
+        );
+    }
   }
 }
